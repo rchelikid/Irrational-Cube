@@ -784,7 +784,7 @@ float applyCubliConstrain(float cubliMotor, int i)
   } else if (cubliMotor > motorOutputHigh && motorOutputPrevious[i] < motorOutputHigh) { // normal and max
     cubliMotor = motorOutputHigh; // max normal
   } else {
-    cubliMotor = cubliMotor; // if something screws up
+    cubliMotor = cubliMotor; // if within bounds, pass motor value
   }
 
     if (cubliMotor >= motorOutputLow && cubliMotor <= deadbandMotor3dLow) {
@@ -921,10 +921,10 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 float cubliMotorError(float cubliMotor) {
   float error = 0;
   if (cubliMotor < deadbandMotor3dLow) { // inverted
-    error = motorOutputLow - cubliMotor; //Negative number
+    error = cubliMotor - motorOutputLow; //Positive number
 
   } else if (cubliMotor > deadbandMotor3dHigh) { // normal
-    error = cubliMotor - deadbandMotor3dHigh; //Positive number
+    error = deadbandMotor3dHigh - cubliMotor; //Negative number
   }
   return error;
 }
