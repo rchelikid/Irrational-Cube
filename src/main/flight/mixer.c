@@ -773,17 +773,29 @@ float applyCubliConstrain(float cubliMotor, int i)
     }
   }
     //deadbandMotor3DLow - high output
-    //motorOutputLow - idle output 
-    //deadbandMotor3DHigh - idle output 
+    //motorOutputLow - idle output DSHOT_MIN_THROTTLE
+    //deadbandMotor3DHigh - idle output DSHOT_3D_FORWARD_MIN_THROTTLE
     //motorOutputHigh - high output
+    int changeLimit = (deadbandMotor3dLow - motorOutputLow)
+    // add constrain to limit the change in motor settings to be less than half motor range!!!!
+        
+    if ((motorOutputPrevious[i] - cubliMotor) > changeLimit ) {
+        cubliMotor = cubliMotor - changeLimit;
+    } else if ( motorOutputPrevious[i] - cubliMotor ) < changeLimit ) {
+        cubliMotor = cubliMotor + changeLimit;
+    } else {
+        cubliMotor = cubliMotor;
+        
+ motorOutput = constrain(motorOutput, motorRangeMin[i], motorRangeMax[i]);
     
-  if (cubliMotor < motorOutputLow && motorOutputPrevious[i] < deadbandMotor3dLow) { //inverted and going normal
+          // now normal                // was inverted
+  if (cubliMotor < motorOutputLow && motorOutputPrevious[i] < deadbandMotor3dHigh) { //inverted and going normal
     cubliMotor = deadbandMotor3dHigh + (motorOutputLow - cubliMotor);
 
   } else if (cubliMotor < deadbandMotor3dHigh && motorOutputPrevious[i] > deadbandMotor3dHigh) { // normal and going inverted
     cubliMotor = motorOutputLow + (deadbandMotor3dHigh - cubliMotor);
-
-  } else if (cubliMotor > deadbandMotor3dLow && motorOutputPrevious[i] < deadbandMotor3dLow) { // inverted and max
+             //maxx invereted OR now normal                          //before inverted
+  } else if (cubliMotor > deadbandMotor3dLow && motorOutputPrevious[i] < deadbandMotor3dHigh) { // inverted and max
     cubliMotor = deadbandMotor3dLow; // max inverted
 
   } else if (cubliMotor > motorOutputHigh && motorOutputPrevious[i] < motorOutputHigh) { // normal and max
@@ -791,54 +803,20 @@ float applyCubliConstrain(float cubliMotor, int i)
   } else {
     cubliMotor = cubliMotor; // if within bounds, pass motor value
   }
-
+        motorRangeMin[i] = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
+        motorRangeMax[i] = DSHOT_MAX_THROTTLE; //motorOutputHigh;
+        motorOutputMin[i] = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
+        motorOutputRange[i] = DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE;//motorOutputHigh - deadbandMotor3dHigh;
+    
     if (cubliMotor >= motorOutputLow && cubliMotor <= deadbandMotor3dLow) {
         // INVERTED
-        motorRangeMin[i] = motorOutputLow; // change to DSHOT_MIN_THROTTLE
-        motorRangeMax[i] = deadbandMotor3dLow; //DSHOT_MAX_THROTTLE
-    #ifdef USE_DSHOT
-        if (isMotorProtocolDshot()) {
-            motorOutputMin[i] = motorOutputLow;
-            motorOutputRange[i] = deadbandMotor3dLow - motorOutputLow; // positive number
-        } else
-    #endif
-        {
-            motorOutputMin[i] = deadbandMotor3dLow;
-            motorOutputRange[i] = motorOutputLow - deadbandMotor3dLow;
-        }
         motorOutputPrevious[i] = cubliMotor;
     } else //if (cubliMotor >= deadbandMotor3dHigh && cubliMotor <= motorOutputHigh) {
         {
         // NORMAL
-        motorRangeMin[i] = deadbandMotor3dHigh;
-        motorRangeMax[i] = motorOutputHigh;
-        motorOutputMin[i] = deadbandMotor3dHigh;
-        motorOutputRange[i] = motorOutputHigh - deadbandMotor3dHigh;
         motorOutputPrevious[i] = cubliMotor;
 }
-//     } else if (motorOutputPrevious[i] < deadbandMotor3dLow) {
-//         // INVERTED_TO_DEADBAND
-//         motorRangeMin[i] = motorOutputLow;
-//         motorRangeMax[i] = deadbandMotor3dLow;
-//
-//     #ifdef USE_DSHOT
-//         if (isMotorProtocolDshot()) {
-//             motorOutputMin[i] = motorOutputLow;
-//             motorOutputRange[i] = deadbandMotor3dLow - motorOutputLow;
-//         } else
-//     #endif
-//         {
-//             motorOutputMin[i] = deadbandMotor3dLow;
-//             motorOutputRange[i] = motorOutputLow - deadbandMotor3dLow;
-//         }
-//     } else {
-//         // NORMAL_TO_DEADBAND
-//         motorRangeMin[i] = deadbandMotor3dHigh;
-//         motorRangeMax[i] = motorOutputHigh;
-//         motorOutputMin[i] = deadbandMotor3dHigh;
-//         motorOutputRange[i] = motorOutputHigh - deadbandMotor3dHigh;
-// }
-
+    
 return cubliMotor;
 }
 
