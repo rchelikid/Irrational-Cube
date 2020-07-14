@@ -773,7 +773,7 @@ float applyCubliConstrain(float cubliMotor, int i)
     }
   }
     //deadbandMotor3DLow - high output
-    //motorOutputLow - idle output
+    //motorOutputLow - idle output 
     //deadbandMotor3DHigh - idle output 
     //motorOutputHigh - high output
     
@@ -794,8 +794,8 @@ float applyCubliConstrain(float cubliMotor, int i)
 
     if (cubliMotor >= motorOutputLow && cubliMotor <= deadbandMotor3dLow) {
         // INVERTED
-        motorRangeMin[i] = motorOutputLow;
-        motorRangeMax[i] = deadbandMotor3dLow;
+        motorRangeMin[i] = motorOutputLow; // change to DSHOT_MIN_THROTTLE
+        motorRangeMax[i] = deadbandMotor3dLow; //DSHOT_MAX_THROTTLE
     #ifdef USE_DSHOT
         if (isMotorProtocolDshot()) {
             motorOutputMin[i] = motorOutputLow;
