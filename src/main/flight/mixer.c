@@ -772,6 +772,11 @@ float applyCubliConstrain(float cubliMotor, int i)
       motorOutputPrevious[i] = motorOutputLow + 1;
     }
   }
+    //deadbandMotor3DLow - high output
+    //motorOutputLow - idle output
+    //deadbandMotor3DHigh - idle output 
+    //motorOutputHigh - high output
+    
   if (cubliMotor < motorOutputLow && motorOutputPrevious[i] < deadbandMotor3dLow) { //inverted and going normal
     cubliMotor = deadbandMotor3dHigh + (motorOutputLow - cubliMotor);
 
