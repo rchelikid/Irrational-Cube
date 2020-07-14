@@ -490,6 +490,9 @@ void mavlinkSendHUDAndHeartbeat(void)
         case MIXER_HELI_90_DEG:
             mavSystemType = MAV_TYPE_HELICOPTER;
             break;
+        // case MIXER_CUBLI:
+        //     mavSystemType = MAV_TYPE_GENERIC;
+        //     break;
         default:
             mavSystemType = MAV_TYPE_GENERIC;
             break;

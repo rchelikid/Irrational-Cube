@@ -32,9 +32,12 @@
 #include "common/filter.h"
 #include "common/maths.h"
 
+#include "config/feature.h"
+
 #include "config/config_reset.h"
 
 #include "drivers/dshot_command.h"
+#include "drivers/dshot.h"
 #include "drivers/pwm_output.h"
 #include "drivers/sound_beeper.h"
 #include "drivers/time.h"
@@ -44,6 +47,8 @@
 #include "fc/rc.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
+
+#include "rx/rx.h"
 
 #include "flight/gps_rescue.h"
 #include "flight/imu.h"
@@ -145,11 +150,18 @@ void resetPidProfile(pidProfile_t *pidProfile)
 {
     RESET_CONFIG(pidProfile_t, pidProfile,
         .pid = {
-            [PID_ROLL] =  { 42, 85, 35, 90 },
-            [PID_PITCH] = { 46, 90, 38, 95 },
-            [PID_YAW] =   { 45, 90, 0, 90 },
-            [PID_LEVEL] = { 50, 50, 75, 0 },
-            [PID_MAG] =   { 40, 0, 0, 0 },
+            [PID_ROLL] =  { 42, 85, 35, 90, 1 },
+            [PID_PITCH] = { 46, 90, 38, 95, 1 },
+            [PID_YAW] =   { 45, 90, 0, 90, 1 },
+            [PID_LEVEL] = { 50, 50, 75, 0, 0 },
+            [PID_MAG] =   { 40, 0, 0, 0, 0 },
+
+        },
+        .cubli_rpm_p = { //DELETE
+          [FD_ROLL] = 50, //DELETE
+          [FD_PITCH] = 50, //DELETE
+          [FD_YAW] = 50, //DELETE
+
         },
         .pidSumLimit = PIDSUM_LIMIT,
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
@@ -529,6 +541,7 @@ typedef struct pidCoefficient_s {
     float Ki;
     float Kd;
     float Kf;
+    float Kr; //KYLE added
 } pidCoefficient_t;
 
 static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
@@ -626,6 +639,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         pidCoefficient[axis].Ki = ITERM_SCALE * pidProfile->pid[axis].I;
         pidCoefficient[axis].Kd = DTERM_SCALE * pidProfile->pid[axis].D;
         pidCoefficient[axis].Kf = FEEDFORWARD_SCALE * (pidProfile->pid[axis].F / 100.0f);
+        pidCoefficient[axis].Kr = RTERM_SCALE * pidProfile->pid[axis].R;
     }
 #ifdef USE_INTEGRATED_YAW_CONTROL
     if (!pidProfile->use_integrated_yaw)
@@ -1372,9 +1386,9 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
 
-        float currentPidSetpoint = getSetpointRate(axis);
+        float currentPidSetpoint = getSetpointRate(axis); //GETS RATE IN DEG/SEC KYLE
         if (maxVelocity[axis]) {
-            currentPidSetpoint = accelerationLimit(axis, currentPidSetpoint);
+            currentPidSetpoint = accelerationLimit(axis, currentPidSetpoint); //MAKES SURE MAX IS NOT EXCEEDED. DEG/SEC KYLE
         }
         // Yaw control is GYRO based, direct sticks control is applied to rate PID
         // When Race Mode is active PITCH control is also GYRO based in level or horizon mode
@@ -1445,6 +1459,21 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
         float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
+// -----calculate R component
+// -------SETPOINT FOR CUBLI
+// if (featureIsEnabled(FEATURE_CUBLI))
+// {
+
+// #ifdef USE_DSHOT_TELEMETRY
+// if (motorConfig()->dev.useDshotTelemetry) {
+//     rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+// #endif
+//   } else {
+//     rpm = 0
+// currentpidSetpoint
+// }
+  pidData[axis].R = pidCoefficient[axis].Kr; //* rpm; maybe error rate?
+
 
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
         // 2-DOF PID controller with optional filter on derivative term.
@@ -1452,9 +1481,11 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         // -----calculate P component
         pidData[axis].P = pidCoefficient[axis].Kp * errorRate * tpaFactorKp;
+if (!featureIsEnabled(FEATURE_CUBLI)) {
         if (axis == FD_YAW) {
             pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
         }
+}
 
         // -----calculate I component
         float Ki;
@@ -1464,7 +1495,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (launchControlActive) {
             Ki = launchControlKi;
             axisDynCi = dynCi;
-        } else 
+        } else
 #endif
         {
             Ki = pidCoefficient[axis].Ki;
@@ -1609,6 +1640,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             pidData[axis].I = 0;
             pidData[axis].D = 0;
             pidData[axis].F = 0;
+            pidData[axis].R = 0;
 
             pidData[axis].Sum = 0;
         }

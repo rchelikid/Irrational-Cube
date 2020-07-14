@@ -252,7 +252,7 @@ static const char * const mixerNames[] = {
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
     "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4",
     "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
-    "ATAIL4", "CUSTOM", "CUSTOMAIRPLANE", "CUSTOMTRI", "QUADX1234", NULL
+    "ATAIL4", "CUSTOM", "CUSTOMAIRPLANE", "CUSTOMTRI", "QUADX1234", "CUBLI", NULL // cubli was here Kyle
 };
 #endif
 
@@ -263,7 +263,7 @@ static const char * const featureNames[] = {
     "RANGEFINDER", "TELEMETRY", "", "3D", "RX_PARALLEL_PWM",
     "RX_MSP", "RSSI_ADC", "LED_STRIP", "DISPLAY", "OSD",
     "", "CHANNEL_FORWARDING", "TRANSPONDER", "AIRMODE",
-    "", "", "RX_SPI", "", "ESC_SENSOR", "ANTI_GRAVITY", "DYNAMIC_FILTER", NULL
+    "", "", "RX_SPI", "", "ESC_SENSOR", "ANTI_GRAVITY", "DYNAMIC_FILTER", "CUBLI", NULL
 };
 
 // sync this with rxFailsafeChannelMode_e

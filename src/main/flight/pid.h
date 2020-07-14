@@ -39,6 +39,7 @@
 #define PTERM_SCALE 0.032029f
 #define ITERM_SCALE 0.244381f
 #define DTERM_SCALE 0.000529f
+#define RTERM_SCALE 0.000100f // scale for setpoint change
 
 // The constant scale factor to replace the Kd component of the feedforward calculation.
 // This value gives the same "feel" as the previous Kd default of 26 (26 * DTERM_SCALE)
@@ -85,6 +86,7 @@ typedef struct pidf_s {
     uint8_t I;
     uint8_t D;
     uint16_t F;
+    uint16_t R;
 } pidf_t;
 
 typedef enum {
@@ -114,6 +116,7 @@ typedef struct pidProfile_s {
     uint16_t dterm_lowpass_hz;              // Delta Filter in hz
     uint16_t dterm_notch_hz;                // Biquad dterm notch hz
     uint16_t dterm_notch_cutoff;            // Biquad dterm notch low cutoff
+    uint16_t cubli_rpm_p[XYZ_AXIS_COUNT];   //roll pitch yaw coefficient KYLE
 
     pidf_t  pid[PID_ITEM_COUNT];
 
@@ -180,7 +183,7 @@ typedef struct pidProfile_s {
     uint8_t ff_boost;                       // amount of high-pass filtered FF to add to FF, 100 means 100% added
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
 
-    uint8_t idle_min_rpm;                   // minimum motor speed enforced by integrating p controller
+    uint8_t idle_min_rpm;                   // minimum motor speed enforced by integrating p controller KYLE
     uint8_t idle_adjustment_speed;          // how quickly the integrating p controller tries to correct
     uint8_t idle_p;                         // kP
     uint8_t idle_pid_limit;                 // max P
@@ -214,6 +217,7 @@ typedef struct pidAxisData_s {
     float I;
     float D;
     float F;
+    float R;
 
     float Sum;
 } pidAxisData_t;

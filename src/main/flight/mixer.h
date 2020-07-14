@@ -57,7 +57,8 @@ typedef enum mixerMode
     MIXER_CUSTOM = 23,
     MIXER_CUSTOM_AIRPLANE = 24,
     MIXER_CUSTOM_TRI = 25,
-    MIXER_QUADX_1234 = 26
+    MIXER_QUADX_1234 = 26,
+    MIXER_CUBLI = 27
 } mixerMode_e;
 
 // Custom mixer data per motor
@@ -82,6 +83,7 @@ typedef struct mixerConfig_s {
     bool yaw_motors_reversed;
     uint8_t crashflip_motor_percent;
     uint8_t crashflip_expo;
+    uint8_t cubli_mixer;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

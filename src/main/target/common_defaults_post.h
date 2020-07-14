@@ -460,7 +460,7 @@
 #endif
 
 #ifndef DEFAULT_MIXER
-#define DEFAULT_MIXER    MIXER_QUADX
+#define DEFAULT_MIXER    MIXER_QUADX //Kyle Default Mixer
 #endif
 
 #if defined(USE_RANGEFINDER) && defined(USE_RANGEFINDER_HCSR04)
