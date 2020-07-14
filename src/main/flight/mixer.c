@@ -766,6 +766,12 @@ static void applyFlipOverAfterCrashModeToMotors(void)
 
 float applyCubliConstrain(float cubliMotor, int i)
 {
+  if (!ARMING_FLAG(ARMED) && featureIsEnabled(FEATURE_CUBLI)) { // sets motors low before arm
+    for (int i = 0; i < motorCount; i++) {
+      motor[i] = motorOutputLow;
+      motorOutputPrevious[i] = motorOutputLow + 1;
+    }
+  }
   if (cubliMotor < motorOutputLow && motorOutputPrevious[i] < deadbandMotor3dLow) { //inverted and going normal
     cubliMotor = deadbandMotor3dHigh + (motorOutputLow - cubliMotor);
 
@@ -796,7 +802,8 @@ float applyCubliConstrain(float cubliMotor, int i)
             motorOutputRange[i] = motorOutputLow - deadbandMotor3dLow;
         }
         motorOutputPrevious[i] = cubliMotor;
-    } else if (cubliMotor >= deadbandMotor3dHigh && cubliMotor <= motorOutputHigh) {
+    } else //if (cubliMotor >= deadbandMotor3dHigh && cubliMotor <= motorOutputHigh) {
+        {
         // NORMAL
         motorRangeMin[i] = deadbandMotor3dHigh;
         motorRangeMax[i] = motorOutputHigh;
@@ -854,11 +861,6 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
 #endif
             motorOutput = constrain(motorOutput, disarmMotorOutput, motorRangeMax[i]);
         } else if (featureIsEnabled(FEATURE_CUBLI)) {
-          if (!ARMING_FLAG(ARMED)) { // sets motots to stop before it is armed
-            for (int i = 0; i < motorCount; i++) {
-              motor[i] = motorOutputLow;
-            }
-          }
             motorOutput = applyCubliConstrain(motorOutput, i);
         } else {
             motorOutput = constrain(motorOutput, motorRangeMin[i], motorRangeMax[i]);
@@ -919,10 +921,10 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 float cubliMotorError(float cubliMotor) {
   float error = 0;
   if (cubliMotor < deadbandMotor3dLow) { // inverted
-    error = cubliMotor - motorOutputLow; //Positive number
+    error = motorOutputLow - cubliMotor; //Negative number
 
   } else if (cubliMotor > deadbandMotor3dHigh) { // normal
-    error = deadbandMotor3dHigh - cubliMotor; //Negative number
+    error = cubliMotor - deadbandMotor3dHigh; //Positive number
   }
   return error;
 }
