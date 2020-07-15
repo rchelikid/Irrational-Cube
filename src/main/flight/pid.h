@@ -39,7 +39,7 @@
 #define PTERM_SCALE 0.032029f
 #define ITERM_SCALE 0.244381f
 #define DTERM_SCALE 0.000529f
-#define RTERM_SCALE 0.000100f // scale for setpoint change
+#define RTERM_SCALE 0.000001f // scale for setpoint change
 
 // The constant scale factor to replace the Kd component of the feedforward calculation.
 // This value gives the same "feel" as the previous Kd default of 26 (26 * DTERM_SCALE)

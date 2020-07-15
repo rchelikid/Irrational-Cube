@@ -511,10 +511,10 @@ void stopMotors(void)
 
 static FAST_RAM_ZERO_INIT float throttle = 0;
 static FAST_RAM_ZERO_INIT float mixerThrottle = 0;
-static FAST_RAM_ZERO_INIT float motorOutputMin[MAX_SUPPORTED_MOTORS];
-static FAST_RAM_ZERO_INIT float motorRangeMin[MAX_SUPPORTED_MOTORS];
-static FAST_RAM_ZERO_INIT float motorRangeMax[MAX_SUPPORTED_MOTORS];
-static FAST_RAM_ZERO_INIT float motorOutputRange[MAX_SUPPORTED_MOTORS];
+static FAST_RAM_ZERO_INIT float motorOutputMin;
+static FAST_RAM_ZERO_INIT float motorRangeMin;
+static FAST_RAM_ZERO_INIT float motorRangeMax;
+static FAST_RAM_ZERO_INIT float motorOutputRange;
 static FAST_RAM_ZERO_INIT float motorOutputPrevious[MAX_SUPPORTED_MOTORS];
 //static FAST_RAM_ZERO_INIT float motorOutput[MAX_SUPPORTED_MOTORS];
 static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
@@ -522,7 +522,6 @@ static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
 
 static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 {
-      for (int i = 0; i < 1; ++i) {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
     static timeUs_t reversalTimeUs = 0; // time when motors last reversed in 3D mode
     static float motorRangeMinIncrease = 0;
@@ -556,17 +555,17 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 
         if (rcCommand[THROTTLE] <= rcCommand3dDeadBandLow || isFlipOverAfterCrashActive()) {
             // INVERTED
-            motorRangeMin[i] = motorOutputLow;
-            motorRangeMax[i] = deadbandMotor3dLow;
+            motorRangeMin = motorOutputLow;
+            motorRangeMax = deadbandMotor3dLow;
 #ifdef USE_DSHOT
             if (isMotorProtocolDshot()) {
-                motorOutputMin[i] = motorOutputLow;
-                motorOutputRange[i] = deadbandMotor3dLow - motorOutputLow;
+                motorOutputMin = motorOutputLow;
+                motorOutputRange = deadbandMotor3dLow - motorOutputLow;
             } else
 #endif
             {
-                motorOutputMin[i] = deadbandMotor3dLow;
-                motorOutputRange[i] = motorOutputLow - deadbandMotor3dLow;
+                motorOutputMin = deadbandMotor3dLow;
+                motorOutputRange = motorOutputLow - deadbandMotor3dLow;
             }
 
             if (motorOutputMixSign != -1) {
@@ -579,10 +578,10 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             currentThrottleInputRange = rcCommandThrottleRange3dLow;
         } else if (rcCommand[THROTTLE] >= rcCommand3dDeadBandHigh) {
             // NORMAL
-            motorRangeMin[i] = deadbandMotor3dHigh;
-            motorRangeMax[i] = motorOutputHigh;
-            motorOutputMin[i] = deadbandMotor3dHigh;
-            motorOutputRange[i] = motorOutputHigh - deadbandMotor3dHigh;
+            motorRangeMin = deadbandMotor3dHigh;
+            motorRangeMax = motorOutputHigh;
+            motorOutputMin = deadbandMotor3dHigh;
+            motorOutputRange = motorOutputHigh - deadbandMotor3dHigh;
             if (motorOutputMixSign != 1) {
                 reversalTimeUs = currentTimeUs;
             }
@@ -594,18 +593,18 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
                 !flight3DConfigMutable()->switched_mode3d) ||
                 isMotorsReversed()) {
             // INVERTED_TO_DEADBAND
-            motorRangeMin[i] = motorOutputLow;
-            motorRangeMax[i] = deadbandMotor3dLow;
+            motorRangeMin = motorOutputLow;
+            motorRangeMax = deadbandMotor3dLow;
 
 #ifdef USE_DSHOT
             if (isMotorProtocolDshot()) {
-                motorOutputMin[i] = motorOutputLow;
-                motorOutputRange[i] = deadbandMotor3dLow - motorOutputLow;
+                motorOutputMin = motorOutputLow;
+                motorOutputRange = deadbandMotor3dLow - motorOutputLow;
             } else
 #endif
             {
-                motorOutputMin[i] = deadbandMotor3dLow;
-                motorOutputRange[i] = motorOutputLow - deadbandMotor3dLow;
+                motorOutputMin = deadbandMotor3dLow;
+                motorOutputRange = motorOutputLow - deadbandMotor3dLow;
             }
 
             if (motorOutputMixSign != -1) {
@@ -617,10 +616,10 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             currentThrottleInputRange = rcCommandThrottleRange3dLow;
         } else {
             // NORMAL_TO_DEADBAND
-            motorRangeMin[i] = deadbandMotor3dHigh;
-            motorRangeMax[i] = motorOutputHigh;
-            motorOutputMin[i] = deadbandMotor3dHigh;
-            motorOutputRange[i] = motorOutputHigh - deadbandMotor3dHigh;
+            motorRangeMin = deadbandMotor3dHigh;
+            motorRangeMax = motorOutputHigh;
+            motorOutputMin = deadbandMotor3dHigh;
+            motorOutputRange = motorOutputHigh - deadbandMotor3dHigh;
             if (motorOutputMixSign != 1) {
                 reversalTimeUs = currentTimeUs;
             }
@@ -668,20 +667,20 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             DEBUG_SET(DEBUG_BATTERY, 2, batteryGoodness * 100);
             DEBUG_SET(DEBUG_BATTERY, 3, motorRangeAttenuationFactor * 1000);
         }
-        motorRangeMax[i] = motorOutputHigh - motorRangeAttenuationFactor * (motorOutputHigh - motorOutputLow);
+        motorRangeMax = motorOutputHigh - motorRangeAttenuationFactor * (motorOutputHigh - motorOutputLow);
 #else
-        motorRangeMax[i] = motorOutputHigh;
+        motorRangeMax = motorOutputHigh;
 #endif
 
         currentThrottleInputRange = rcCommandThrottleRange;
-        motorRangeMin[i] = appliedMotorOutputLow + motorRangeMinIncrease * (motorOutputHigh - appliedMotorOutputLow);
-        motorOutputMin[i] = motorRangeMin[i];
-        motorOutputRange[i] = motorRangeMax[i] - motorRangeMin[i];
+        motorRangeMin = appliedMotorOutputLow + motorRangeMinIncrease * (motorOutputHigh - appliedMotorOutputLow);
+        motorOutputMin = motorRangeMin;
+        motorOutputRange = motorRangeMax - motorRangeMin;
         motorOutputMixSign = 1;
     }
 
     throttle = constrainf(throttle / currentThrottleInputRange, 0.0f, 1.0f);
-  }
+
 }
 
 #define CRASH_FLIP_DEADBAND 20
@@ -749,10 +748,10 @@ static void applyFlipOverAfterCrashModeToMotors(void)
                 }
             }
             motorOutputNormalised = MIN(1.0f, flipPower * motorOutputNormalised);
-            float motorOutput = motorOutputMin[i] + motorOutputNormalised * motorOutputRange[i];
+            float motorOutput = motorOutputMin + motorOutputNormalised * motorOutputRange;
 
             // Add a little bit to the motorOutputMin so props aren't spinning when sticks are centered
-            motorOutput = (motorOutput < motorOutputMin[i] + CRASH_FLIP_DEADBAND) ? disarmMotorOutput : (motorOutput - CRASH_FLIP_DEADBAND);
+            motorOutput = (motorOutput < motorOutputMin + CRASH_FLIP_DEADBAND) ? disarmMotorOutput : (motorOutput - CRASH_FLIP_DEADBAND);
 
             motor[i] = motorOutput;
         }
@@ -766,28 +765,39 @@ static void applyFlipOverAfterCrashModeToMotors(void)
 
 float applyCubliConstrain(float cubliMotor, int i)
 {
+  throttle = 0.001f;
+  //throttle = constrainf(throttle / currentThrottleInputRange, 0.0f, 1.0f);
   if (!ARMING_FLAG(ARMED) && featureIsEnabled(FEATURE_CUBLI)) { // sets motors low before arm
     for (int i = 0; i < motorCount; i++) {
       motor[i] = motorOutputLow;
-      motorOutputPrevious[i] = motorOutputLow + 1;
+      motorOutputPrevious[i] = motorOutputLow + 1.0f;
     }
   }
+  motorOutputMixSign = 1;
     //deadbandMotor3DLow - high output
     //motorOutputLow - idle output DSHOT_MIN_THROTTLE
     //deadbandMotor3DHigh - idle output DSHOT_3D_FORWARD_MIN_THROTTLE
     //motorOutputHigh - high output
-    int changeLimit = (deadbandMotor3dLow - motorOutputLow)
-    // add constrain to limit the change in motor settings to be less than half motor range!!!!
-        
+    int changeLimit = (deadbandMotor3dLow - motorOutputLow);
+    motorOutputMin = motorOutputLow - changeLimit;
+    motorRangeMin = motorOutputLow - changeLimit;
+    motorRangeMax = motorOutputHigh + changeLimit;
+    motorOutputRange = motorOutputHigh - motorOutputLow; // maybe make this motor dependant
+
+    // motorRangeMin = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
+    // motorRangeMax = DSHOT_MAX_THROTTLE; //motorOutputHigh;
+    // motorOutputMin = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
+    // motorOutputRange = DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE;//motorOutputHigh - deadbandMotor3dHigh;
+
     if ((motorOutputPrevious[i] - cubliMotor) > changeLimit ) {
         cubliMotor = cubliMotor - changeLimit;
-    } else if ( motorOutputPrevious[i] - cubliMotor ) < changeLimit ) {
+    } else if ( (motorOutputPrevious[i] - cubliMotor) < changeLimit ) {
         cubliMotor = cubliMotor + changeLimit;
     } else {
         cubliMotor = cubliMotor;
-        
- motorOutput = constrain(motorOutput, motorRangeMin[i], motorRangeMax[i]);
-    
+    }
+
+
           // now normal                // was inverted
   if (cubliMotor < motorOutputLow && motorOutputPrevious[i] < deadbandMotor3dHigh) { //inverted and going normal
     cubliMotor = deadbandMotor3dHigh + (motorOutputLow - cubliMotor);
@@ -803,11 +813,7 @@ float applyCubliConstrain(float cubliMotor, int i)
   } else {
     cubliMotor = cubliMotor; // if within bounds, pass motor value
   }
-        motorRangeMin[i] = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
-        motorRangeMax[i] = DSHOT_MAX_THROTTLE; //motorOutputHigh;
-        motorOutputMin[i] = DSHOT_MIN_THROTTLE; //deadbandMotor3dHigh;
-        motorOutputRange[i] = DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE;//motorOutputHigh - deadbandMotor3dHigh;
-    
+
     if (cubliMotor >= motorOutputLow && cubliMotor <= deadbandMotor3dLow) {
         // INVERTED
         motorOutputPrevious[i] = cubliMotor;
@@ -816,7 +822,7 @@ float applyCubliConstrain(float cubliMotor, int i)
         // NORMAL
         motorOutputPrevious[i] = cubliMotor;
 }
-    
+
 return cubliMotor;
 }
 
@@ -825,11 +831,12 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     // Now add in the desired throttle, but keep in a range that doesn't clip adjusted
     // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
     for (int i = 0; i < motorCount; i++) {
-        float motorOutput = motorOutputMixSign * motorMix[i] + throttle * activeMixer[i].throttle;
+        float motorOutput = motorOutputMixSign * motorMix[i];// + throttle * activeMixer[i].throttle;
 #ifdef USE_THRUST_LINEARIZATION
         motorOutput = pidApplyThrustLinearization(motorOutput);
 #endif
-        motorOutput = motorOutputMin[i] + motorOutputRange[i] * motorOutput;
+        // motorOutput = motorOutputMin + motorOutputRange * motorOutput;
+        motorOutput =  motorOutputRange * motorOutput;
 
 #ifdef USE_SERVOS
         if (mixerIsTricopter()) {
@@ -839,14 +846,14 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         if (failsafeIsActive()) {
 #ifdef USE_DSHOT
             if (isMotorProtocolDshot()) {
-                motorOutput = (motorOutput < motorRangeMin[i]) ? disarmMotorOutput : motorOutput; // Prevent getting into special reserved range
+                motorOutput = (motorOutput < motorOutputLow) ? disarmMotorOutput : motorOutput; // Prevent getting into special reserved range
             }
 #endif
-            motorOutput = constrain(motorOutput, disarmMotorOutput, motorRangeMax[i]);
+            motorOutput = constrain(motorOutput, disarmMotorOutput, motorRangeMax);
         } else if (featureIsEnabled(FEATURE_CUBLI)) {
             motorOutput = applyCubliConstrain(motorOutput, i);
         } else {
-            motorOutput = constrain(motorOutput, motorRangeMin[i], motorRangeMax[i]);
+            motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
         }
         motor[i] = motorOutput;
     }
@@ -903,11 +910,11 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 
 float cubliMotorError(float cubliMotor) {
   float error = 0;
-  if (cubliMotor < deadbandMotor3dLow) { // inverted
-    error = cubliMotor - motorOutputLow; //Positive number
+  if (cubliMotor < deadbandMotor3dHigh) { // inverted
+    error = cubliMotor - DSHOT_MIN_THROTTLE; //Positive number
 
-  } else if (cubliMotor > deadbandMotor3dHigh) { // normal
-    error = deadbandMotor3dHigh - cubliMotor; //Negative number
+  } else if (cubliMotor > deadbandMotor3dLow) { // normal
+    error = DSHOT_3D_FORWARD_MIN_THROTTLE - cubliMotor; //Negative number
   }
   return error;
 }
@@ -992,7 +999,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 
         if (featureIsEnabled(FEATURE_CUBLI)) {
           if (i < 3 ){
-            mix = mix + (cubliMotorError(mix) * pidData[i].R);
+            mix = mix + (cubliMotorError(mix) * 0.000001f * pidData[i].R);
           }
         }
 
@@ -1040,22 +1047,22 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
     mixerThrottle = throttle;
 
     motorMixRange = motorMixMax - motorMixMin;
-    if (motorMixRange > 1.0f) {
-        for (int i = 0; i < motorCount; i++) {
-            motorMix[i] /= motorMixRange;
-        }
-        // Get the maximum correction by setting offset to center when airmode enabled
-        if (airmodeEnabled) {
-            throttle = 0.5f;
-        }
-    } else {
-        if (airmodeEnabled || throttle > 0.5f) {  // Only automatically adjust throttle when airmode enabled. Airmode logic is always active on high throttle
-            throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
-#ifdef USE_AIRMODE_LPF
-            airmodeThrottleChange = constrainf(unadjustedThrottle, -motorMixMin, 1.0f - motorMixMax) - unadjustedThrottle;
-#endif
-        }
-    }
+//     if (motorMixRange > 1.0f) {
+//         for (int i = 0; i < motorCount; i++) {
+//             motorMix[i] /= motorMixRange;
+//         }
+//         // Get the maximum correction by setting offset to center when airmode enabled
+//         if (airmodeEnabled) {
+//             throttle = 0.5f;
+//         }
+//     } else {
+//         if (airmodeEnabled || throttle > 0.5f) {  // Only automatically adjust throttle when airmode enabled. Airmode logic is always active on high throttle
+//             throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
+// #ifdef USE_AIRMODE_LPF
+//             airmodeThrottleChange = constrainf(unadjustedThrottle, -motorMixMin, 1.0f - motorMixMax) - unadjustedThrottle;
+// #endif
+//         }
+//     }
 
 #ifdef USE_AIRMODE_LPF
     pidUpdateAirmodeLpf(airmodeThrottleChange);
