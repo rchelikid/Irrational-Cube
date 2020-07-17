@@ -860,7 +860,7 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         motorOutput = calculateCurrentMotorEndpoints(motorOutput);
         // motorOutput = motorOutputMin + motorOutputRange * motorOutput;
 
-          motorOutput = motorRangeMin + (motorOutputRange * motorOutput); // switches it to positive
+          motorOutput = motorOutputMin + (motorOutputRange * motorOutput); // switches it to positive
 
 
 
@@ -1023,7 +1023,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 
         if (featureIsEnabled(FEATURE_CUBLI)) {
           if (i < 3 ){
-            mix = mix + (-mix * pidData[i].R); // each motor needs to try to get back to zero.
+            mix = mix + (mix * pidData[i].R); // each motor needs to try to get back to zero.
           }
         }
 
