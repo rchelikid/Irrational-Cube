@@ -880,7 +880,8 @@ const clivalue_t valueTable[] = {
 
 // CUBLI
 #ifdef USE_CUBLI
-    { "cubli",          VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, cubli_mixer) },
+    { "cubli",                    VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, cubli_mixer) },
+    { "deadband_cubli",           VAR_UINT8   | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, deadband_cubli) },
 #endif
 
 // PG_MOTOR_3D_CONFIG
