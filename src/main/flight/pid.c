@@ -1463,14 +1463,23 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 // -------SETPOINT FOR CUBLI
 // if (featureIsEnabled(FEATURE_CUBLI))
 // {
-
-// #ifdef USE_DSHOT_TELEMETRY
-// if (motorConfig()->dev.useDshotTelemetry) {
-//     rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
-// #endif
-//   } else {
-//     rpm = 0
-// currentpidSetpoint
+//   float cubliMotorError(int i) {
+//     float error = 0.0f;
+//     int errorOffset = 500;
+//     int rpm = 0;
+//     #ifdef USE_DSHOT_TELEMETRY
+//       if (motorConfig()->dev.useDshotTelemetry) {
+//           rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+//               if (motorOutput <= deadbandMotor3dHigh) { // inverted includes max motor
+//                 error = -rpm - errorOffset;
+//
+//               } else { // normal includes max motor
+//                 error = rpm - errorOffset;
+//               }
+//           }
+//       #endif
+//       return error;
+//   }
 // }
   pidData[axis].R = pidCoefficient[axis].Kr; //* rpm; maybe error rate?
 

@@ -880,8 +880,12 @@ const clivalue_t valueTable[] = {
 
 // CUBLI
 #ifdef USE_CUBLI
-    { "cubli",                    VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, cubli_mixer) },
-    { "deadband_cubli",           VAR_UINT8   | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, deadband_cubli) },
+    { "cubli",                     VAR_INT8    | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, cubli_mixer) },
+    { "deadband_cubli",            VAR_UINT8   | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, deadband_cubli) },
+    { "minrpm_cubli",              VAR_UINT16  | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, minRpm_cubli) },
+    { "errorsetpoint_cubli",       VAR_UINT16  | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, errorSetpoint_cubli) },
+    { "maxerror_cubli",            VAR_UINT16  | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, maxError_cubli) },
+
 #endif
 
 // PG_MOTOR_3D_CONFIG

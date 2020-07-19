@@ -85,6 +85,9 @@ typedef struct mixerConfig_s {
     uint8_t crashflip_expo;
     uint8_t cubli_mixer;
     uint8_t deadband_cubli;
+    uint16_t minRpm_cubli;
+    uint16_t errorSetpoint_cubli;
+    uint16_t maxError_cubli;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

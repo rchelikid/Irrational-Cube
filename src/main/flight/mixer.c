@@ -77,7 +77,11 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .crashflip_motor_percent = 0,
     .crashflip_expo = 35,
     .cubli_mixer = false,
-    .deadband_cubli = 10
+    .deadband_cubli = 15,
+    .minRpm_cubli = 140,
+    .errorSetpoint_cubli = 500,
+    .maxError_cubli = 200
+
 );
 
 PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR_MIXER, 0);
@@ -120,8 +124,8 @@ static const motorMixer_t mixerTricopter[] = {
 };
 
 static const motorMixer_t mixerQuadP[] = {  //Kyle changed this for cubli
-    { 1.0f,  0.0f,  0.0f,  0.0f },          // REAR - ROLL
-    { 1.0f,  0.0f,  0.0f,  0.0f },          // RIGHT - PITCH
+    { 0.0f,  0.0f,  0.0f,  0.0f },          // REAR - ROLL
+    { 0.0f,  0.0f,  0.0f,  0.0f },          // RIGHT - PITCH
     { 1.0f,  0.0f,  0.0f,  1.0f },          // LEFT - YAW
 };
 
@@ -615,7 +619,7 @@ float calculateCurrentMotorEndpoints(float motorSetpoint) // end points
 {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
     static float motorRangeMinIncrease = 0;
-    float motorDeadbandCubli = (mixerConfig()->deadband_cubli) / 100.0f; // variable
+    float motorDeadbandCubli = (mixerConfig()->deadband_cubli) / 500.0f; // variable
 #ifdef USE_DYN_IDLE
     static float oldMinRps;
 #endif
@@ -932,16 +936,35 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
-// float cubliMotorError(float cubliMotor) {
-//   float error = 0.0f;
-//   if (cubliMotor < deadbandMotor3dHigh) { // inverted includes max motor
-//     error = cubliMotor - motorOutputLow - 1; //Positive number and always error when idle
-//
-//   } else if (cubliMotor > deadbandMotor3dLow) { // normal includes max motor
-//     error = deadbandMotor3dLow - cubliMotor; //Negative number and always error when idle
-//   }
-//   return error;
-// }
+float cubliMotorError(int i) {
+  // .deadband_cubli = 15,
+  // .minRpm_cubli = 140,
+  // .errorSetpoint_cubli = 500,
+  // .maxError_cubli = 500
+  float error = 0.0f;
+  int rpm = 0;
+  int minRpm = (mixerConfig()->deadband_cubli); // keep the motor form desync
+  int errorSetpoint = (mixerConfig()->errorSetpoint_cubli) - minRpm; // where the motor should seek and balance
+  int maxError = (mixerConfig()->maxError_cubli); // max error from errorsetpoint
+  #ifdef USE_DSHOT_TELEMETRY
+    if (motorConfig()->dev.useDshotTelemetry) {
+        rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+            if (rpm < minRpm) {
+              error = 0;
+            }
+            else if (motor[i] <= deadbandMotor3dHigh) { // inverted
+              error = -rpm - errorSetpoint - minRpm; //
+
+            } else { // normal
+              error = rpm - errorSetpoint - minRpm; // lower negative higher positive
+            }
+
+            error = constrainf(error, -maxError, maxError);
+        }
+    error = (error / maxError);
+    #endif
+    return error;
+}
 
 FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
 {
@@ -1023,7 +1046,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 
         if (featureIsEnabled(FEATURE_CUBLI)) {
           if (i < 3 ){
-            mix = mix + (mix * pidData[i].R); // each motor needs to try to get back to zero.
+            mix = mix - (cubliMotorError(i) * pidData[i].R);
           }
         }
 
