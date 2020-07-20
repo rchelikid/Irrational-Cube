@@ -83,11 +83,11 @@ typedef struct mixerConfig_s {
     bool yaw_motors_reversed;
     uint8_t crashflip_motor_percent;
     uint8_t crashflip_expo;
-    uint8_t cubli_mixer;
-    uint8_t deadband_cubli;
-    uint16_t minRpm_cubli;
-    uint16_t errorSetpoint_cubli;
-    uint16_t maxError_cubli;
+    uint16_t deadband_cubli;
+    uint16_t minrpm_cubli;
+    uint16_t errorsetpoint_cubli;
+    uint16_t maxerror_cubli;
+    uint16_t maxrpm_cubli;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

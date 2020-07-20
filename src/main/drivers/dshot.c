@@ -52,28 +52,17 @@
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
     float outputLimitOffset = (DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) * (1 - outputLimit);
     *disarm = DSHOT_CMD_MOTOR_STOP;
-    if (featureIsEnabled(FEATURE_3D)) { //&& !mixerConfig()->cubli_mixer
+    if (featureIsEnabled(FEATURE_3D)) {
         // low + idle
         *outputLow = DSHOT_MIN_THROTTLE + ((DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
         *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset / 2;
-        // low + idle 
+        // low + idle
         *deadbandMotor3dHigh = DSHOT_3D_FORWARD_MIN_THROTTLE + ((DSHOT_MAX_THROTTLE - DSHOT_3D_FORWARD_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
         *deadbandMotor3dLow = DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - outputLimitOffset / 2;
 
-    // } else if (featureIsEnabled(FEATURE_3D) && mixerConfig()->cubli_mixer) {
-    //     //48 + something        // 48 + ((1048 - 1 - 48)/100)*SOMETHING = 48 plus something
-    //     *outputLow = DSHOT_MIN_THROTTLE + ((DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
-    //     //2047            // 2047 - 0 = 2047
-    //     *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset / 2;
-    //     //1048 + something/2                     //1048 + ((2047 - 1048)/100) =
-    //     *deadbandMotor3dHigh = DSHOT_3D_FORWARD_MIN_THROTTLE + ((DSHOT_MAX_THROTTLE - DSHOT_3D_FORWARD_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
-    //     //1047                       // 1048 - 1 = 1047
-    //     *deadbandMotor3dLow = DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - outputLimitOffset / 2;
 
     } else {
-        //48 + something
         *outputLow = DSHOT_MIN_THROTTLE + ((DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
-        // 2047
         *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
     }
 }

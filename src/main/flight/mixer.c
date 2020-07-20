@@ -76,11 +76,11 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .yaw_motors_reversed = false,
     .crashflip_motor_percent = 0,
     .crashflip_expo = 35,
-    .cubli_mixer = false,
-    .deadband_cubli = 15,
-    .minRpm_cubli = 140,
-    .errorSetpoint_cubli = 500,
-    .maxError_cubli = 200
+    .deadband_cubli = 15, // percent
+    .minrpm_cubli = 140, // rpm
+    .errorsetpoint_cubli = 500, // rpm
+    .maxerror_cubli = 200, // rpm
+    .maxrpm_cubli = 1500 // rpm
 
 );
 
@@ -124,8 +124,8 @@ static const motorMixer_t mixerTricopter[] = {
 };
 
 static const motorMixer_t mixerQuadP[] = {  //Kyle changed this for cubli
-    { 0.0f,  0.0f,  0.0f,  0.0f },          // REAR - ROLL
-    { 0.0f,  0.0f,  0.0f,  0.0f },          // RIGHT - PITCH
+    { 1.0f,  0.0f,  0.0f,  0.0f },          // REAR - ROLL
+    { 1.0f,  0.0f,  0.0f,  0.0f },          // RIGHT - PITCH
     { 1.0f,  0.0f,  0.0f,  1.0f },          // LEFT - YAW
 };
 
@@ -521,12 +521,13 @@ static FAST_RAM_ZERO_INIT float motorRangeMin;
 static FAST_RAM_ZERO_INIT float motorRangeMax;
 static FAST_RAM_ZERO_INIT float motorOutputRange;
 static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
+static FAST_RAM_ZERO_INIT uint8_t errorStart = 0;
 
 // calculate throttle
-static void calculateCurrentThrottle(timeUs_t currentTimeUs) // throttle
+void calculateCurrentThrottle(void) // throttle
 {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
-    static timeUs_t reversalTimeUs = 0; // time when motors last reversed in 3D mode
+    // static timeUs_t reversalTimeUs = 0; // time when motors last reversed in 3D mode
 
     float currentThrottleInputRange = 0;
 
@@ -546,57 +547,40 @@ static void calculateCurrentThrottle(timeUs_t currentTimeUs) // throttle
             rcCommand3dDeadBandLow = rxConfig()->midrc - mincheckOffset;
             rcCommand3dDeadBandHigh = rxConfig()->midrc + mincheckOffset;
         } else {
-            rcCommand3dDeadBandLow = rxConfig()->midrc - flight3DConfig()->deadband3d_throttle;
-            rcCommand3dDeadBandHigh = rxConfig()->midrc + flight3DConfig()->deadband3d_throttle;
+            rcCommand3dDeadBandLow = rxConfig()->midrc - flight3DConfig()->deadband3d_throttle; // 1450
+            rcCommand3dDeadBandHigh = rxConfig()->midrc + flight3DConfig()->deadband3d_throttle; // 1550
         }
 
-        const float rcCommandThrottleRange3dLow = rcCommand3dDeadBandLow - PWM_RANGE_MIN;
-        const float rcCommandThrottleRange3dHigh = PWM_RANGE_MAX - rcCommand3dDeadBandHigh;
+        const float rcCommandThrottleRange3dLow = rcCommand3dDeadBandLow - PWM_RANGE_MIN; // positive
+        const float rcCommandThrottleRange3dHigh = PWM_RANGE_MAX - rcCommand3dDeadBandHigh; // positive
 
         if (rcCommand[THROTTLE] <= rcCommand3dDeadBandLow || isFlipOverAfterCrashActive()) {
             // INVERTED
 
-            if (motorOutputMixSign != -1) {
-                reversalTimeUs = currentTimeUs;
-            }
-            motorOutputMixSign = -1;
-
-            rcThrottlePrevious = rcCommand[THROTTLE];
-            throttle = rcCommand3dDeadBandLow - rcCommand[THROTTLE];
-            currentThrottleInputRange = rcCommandThrottleRange3dLow;
+            rcThrottlePrevious = rcCommand[THROTTLE]; // low
+            throttle = rcCommand[THROTTLE] - rcCommand3dDeadBandLow; // negative
+            currentThrottleInputRange = rcCommandThrottleRange3dLow; // positive
         } else if (rcCommand[THROTTLE] >= rcCommand3dDeadBandHigh) {
             // NORMAL
-            if (motorOutputMixSign != 1) {
-                reversalTimeUs = currentTimeUs;
-            }
-            motorOutputMixSign = 1;
-            rcThrottlePrevious = rcCommand[THROTTLE];
-            throttle = rcCommand[THROTTLE] - rcCommand3dDeadBandHigh;
-            currentThrottleInputRange = rcCommandThrottleRange3dHigh;
+
+            rcThrottlePrevious = rcCommand[THROTTLE]; // high
+            throttle = rcCommand[THROTTLE] - rcCommand3dDeadBandHigh;// positive
+            currentThrottleInputRange = rcCommandThrottleRange3dHigh;// positive
         } else if ((rcThrottlePrevious <= rcCommand3dDeadBandLow &&
                 !flight3DConfigMutable()->switched_mode3d) ||
                 isMotorsReversed()) {
             // INVERTED_TO_DEADBAND
-            if (motorOutputMixSign != -1) {
-                reversalTimeUs = currentTimeUs;
-            }
-            motorOutputMixSign = -1;
 
             throttle = 0;
             currentThrottleInputRange = rcCommandThrottleRange3dLow;
         } else {
             // NORMAL_TO_DEADBAND
-            if (motorOutputMixSign != 1) {
-                reversalTimeUs = currentTimeUs;
-            }
-            motorOutputMixSign = 1;
+
             throttle = 0;
             currentThrottleInputRange = rcCommandThrottleRange3dHigh;
         }
-        if (currentTimeUs - reversalTimeUs < 250000) {
-            // keep iterm zero for 250ms after motor reversal
-            pidResetIterm();
-        }
+
+        throttle = constrainf(throttle / currentThrottleInputRange, -1.0f, 1.0f);
     } else {
         throttle = rcCommand[THROTTLE] - PWM_RANGE_MIN + throttleAngleCorrection;
 #ifdef USE_DYN_IDLE
@@ -607,10 +591,11 @@ static void calculateCurrentThrottle(timeUs_t currentTimeUs) // throttle
 #endif
 
         currentThrottleInputRange = rcCommandThrottleRange;
-        motorOutputMixSign = 1;
+
+        throttle = constrainf(throttle / currentThrottleInputRange, 0.0f, 1.0f);//
     }
 
-    throttle = constrainf(throttle / currentThrottleInputRange, 0.0f, 1.0f);
+
 }
 // end calculate throttle
 
@@ -619,7 +604,7 @@ float calculateCurrentMotorEndpoints(float motorSetpoint) // end points
 {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
     static float motorRangeMinIncrease = 0;
-    float motorDeadbandCubli = (mixerConfig()->deadband_cubli) / 500.0f; // variable
+    float motorDeadbandCubli = (mixerConfig()->deadband_cubli) / 100.0f; // variable
 #ifdef USE_DYN_IDLE
     static float oldMinRps;
 #endif
@@ -856,10 +841,13 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
     for (int i = 0; i < motorCount; i++) {
         float motorOutput = motorMix[i]; //motorOutputMixSign *
-        float mototOutputThrottle = throttle * activeMixer[i].throttle;
+        float motorOutputThrottle = throttle * activeMixer[i].throttle;
 #ifdef USE_THRUST_LINEARIZATION
         motorOutput = pidApplyThrustLinearization(motorOutput);
 #endif
+        if (errorStart < 1) { // disable throttle once error starts
+        motorOutput = motorOutput + motorOutputThrottle;
+      }
 
         motorOutput = calculateCurrentMotorEndpoints(motorOutput);
         // motorOutput = motorOutputMin + motorOutputRange * motorOutput;
@@ -890,6 +878,7 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     if (!ARMING_FLAG(ARMED)) {
         for (int i = 0; i < motorCount; i++) {
             motor[i] = motor_disarmed[i];
+            errorStart = 0;
         }
     }
 }
@@ -940,36 +929,44 @@ float cubliMotorError(int i) {
   // .deadband_cubli = 15,
   // .minRpm_cubli = 140,
   // .errorSetpoint_cubli = 500,
-  // .maxError_cubli = 500
+  // .maxError_cubli = 500,
+  // .maxRpm_cubli = 1500
   float error = 0.0f;
   int rpm = 0;
-  int minRpm = (mixerConfig()->deadband_cubli); // keep the motor form desync
-  int errorSetpoint = (mixerConfig()->errorSetpoint_cubli) - minRpm; // where the motor should seek and balance
-  int maxError = (mixerConfig()->maxError_cubli); // max error from errorsetpoint
+  int minRpm = (mixerConfig()->minrpm_cubli); // keep the motor form desync
+  int maxRpm = (mixerConfig()->maxrpm_cubli);
+  int errorSetpoint = (mixerConfig()->errorsetpoint_cubli); // where the motor should seek and balance
+  int maxError = (mixerConfig()->maxerror_cubli); // max error from errorsetpoint
   #ifdef USE_DSHOT_TELEMETRY
     if (motorConfig()->dev.useDshotTelemetry) {
         rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+          if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
+          errorStart = 1;
+        }
+      }
+  #endif
+      if (errorStart) {
             if (rpm < minRpm) {
-              error = 0;
-            }
+                error = 0;
+              }
             else if (motor[i] <= deadbandMotor3dHigh) { // inverted
-              error = -rpm - errorSetpoint - minRpm; //
+              error = -rpm - errorSetpoint; //
 
             } else { // normal
-              error = rpm - errorSetpoint - minRpm; // lower negative higher positive
+              error = rpm - errorSetpoint; // lower negative higher positive
             }
 
             error = constrainf(error, -maxError, maxError);
-        }
-    error = (error / maxError);
-    #endif
-    return error;
+            error = (errorSetpoint / maxRpm) + ((error * pidData[i].R) / maxError);
+  }
+  return error;
+
 }
 
 FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
 {
     // Find min and max throttle based on conditions. Throttle has to be known before mixing
-    calculateCurrentThrottle(currentTimeUs);
+    calculateCurrentThrottle();
 
     if (isFlipOverAfterCrashActive()) {
         applyFlipOverAfterCrashModeToMotors();
@@ -1045,8 +1042,8 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
             scaledAxisPidYaw   * activeMixer[i].yaw;
 
         if (featureIsEnabled(FEATURE_CUBLI)) {
-          if (i < 3 ){
-            mix = mix - (cubliMotorError(i) * pidData[i].R);
+          if (i < 3 ) {
+            mix = mix - cubliMotorError(i);
           }
         }
 
