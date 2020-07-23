@@ -36,10 +36,10 @@
 #define PIDSUM_LIMIT_MAX            1000
 
 // Scaling factors for Pids for better tunable range in configurator for betaflight pid controller. The scaling is based on legacy pid controller or previous float
-#define PTERM_SCALE 0.032029f
+#define PTERM_SCALE 0.090000f//0.032029f
 #define ITERM_SCALE 0.244381f
 #define DTERM_SCALE 0.000529f
-#define RTERM_SCALE 0.001000f // scale for setpoint change
+#define RTERM_SCALE 0.100000f // scale for setpoint change
 
 // The constant scale factor to replace the Kd component of the feedforward calculation.
 // This value gives the same "feel" as the previous Kd default of 26 (26 * DTERM_SCALE)
@@ -116,7 +116,7 @@ typedef struct pidProfile_s {
     uint16_t dterm_lowpass_hz;              // Delta Filter in hz
     uint16_t dterm_notch_hz;                // Biquad dterm notch hz
     uint16_t dterm_notch_cutoff;            // Biquad dterm notch low cutoff
-    uint16_t cubli_rpm_p[XYZ_AXIS_COUNT];   //roll pitch yaw coefficient KYLE
+    uint16_t cubli_rpm_p[XYZ_AXIS_COUNT];   //roll pitch yaw coefficient KYLE DELETE
 
     pidf_t  pid[PID_ITEM_COUNT];
 
