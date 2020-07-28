@@ -96,6 +96,7 @@ PG_DECLARE(mixerConfig_t, mixerConfig);
 
 extern const mixer_t mixers[];
 extern float motor[MAX_SUPPORTED_MOTORS];
+extern float motorPrev[MAX_SUPPORTED_MOTORS];
 extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
 extern float motorOutputHigh, motorOutputLow;
 struct rxConfig_s;

@@ -92,7 +92,7 @@ static FAST_RAM_ZERO_INIT uint8_t motorCount;
 static FAST_RAM_ZERO_INIT float motorMixRange;
 
 float FAST_RAM_ZERO_INIT motor[MAX_SUPPORTED_MOTORS];
-// float FAST_RAM_ZERO_INIT motorPrev[MAX_SUPPORTED_MOTORS];
+float FAST_RAM_ZERO_INIT motorPrev[MAX_SUPPORTED_MOTORS];
 float motor_disarmed[MAX_SUPPORTED_MOTORS];
 
 mixerMode_e currentMixerMode;
@@ -127,7 +127,7 @@ static const motorMixer_t mixerTricopter[] = {
 static const motorMixer_t mixerQuadP[] = {  //Kyle changed this for cubli
     { 1.0f,  0.0f,  0.0f,  0.0f },          // REAR - ROLL
     { 1.0f,  0.0f,  0.0f,  0.0f },          // RIGHT - PITCH
-    { 1.0f,  0.0f,  0.0f,  1.0f },          // LEFT - YAW
+    { 1.0f,  0.0f,  0.0f, -1.0f },          // LEFT - YAW
 };
 
 #if defined(USE_UNCOMMON_MIXERS)
@@ -522,7 +522,7 @@ static FAST_RAM_ZERO_INIT float motorRangeMin;
 static FAST_RAM_ZERO_INIT float motorRangeMax;
 static FAST_RAM_ZERO_INIT float motorOutputRange;
 static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
-//static FAST_RAM_ZERO_INIT uint8_t errorStart = 0;
+static FAST_RAM_ZERO_INIT uint8_t errorStart = 0;
 
 // calculate throttle
 void calculateCurrentThrottle(void) // throttle
@@ -835,6 +835,17 @@ static void applyFlipOverAfterCrashModeToMotors(void)
     }
 }
 
+void cubliBalanceStart(void)
+{
+  int midStick = rxConfig()->midrc;
+  if (rcCommand[THROTTLE] > midStick) {
+      featureEnableImmediate(FEATURE_CUBLI);
+      errorStart = 1;
+    } else {
+      featureDisableImmediate(FEATURE_CUBLI);
+      errorStart = 0;
+    }
+}
 
 static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t *activeMixer)
 {
@@ -848,7 +859,10 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
 #endif
         if (errorStart < 1) { // disable throttle once error starts
         motorOutput = motorOutput + motorOutputThrottle;
+      } else {
+        motorOutput = motorOutput + (0.5f * activeMixer[i].throttle);
       }
+      cubliBalanceStart();
 
         motorOutput = calculateCurrentMotorEndpoints(motorOutput);
         // motorOutput = motorOutputMin + motorOutputRange * motorOutput;
@@ -872,8 +886,9 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         } else {
             motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
         }
-        motor[i] = motorOutput;// + motorPrev[i] * dT;
-        // motorPrev[i] = motorOutput;
+        motorPrev[i] = motor [i];
+        motor[i] = motorOutput;
+
     }
 
     // Disarmed mode
@@ -881,7 +896,6 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         for (int i = 0; i < motorCount; i++) {
             motor[i] = motor_disarmed[i];
             //motorPrev[i] = deadbandMotor3dHigh;
-            //errorStart = 0;
         }
     }
 }
@@ -928,6 +942,8 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
+
+
 // float cubliMotorError(int i) {
   // .deadband_cubli = 15,
   // .minRpm_cubli = 140,
@@ -941,10 +957,11 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
   // int errorSetpoint = (mixerConfig()->errorsetpoint_cubli); // where the motor should seek and balance
   //int maxError = (mixerConfig()->maxerror_cubli); // max error from errorsetpoint
   // #ifdef USE_DSHOT_TELEMETRY
-  //   if (motorConfig()->dev.useDshotTelemetry) {
-  //       rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
-  //         if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
-  //         errorStart = 1;
+    // if (motorConfig()->dev.useDshotTelemetry) {
+    //     rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+    //       if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
+    //       errorStart = 1;
+    //         featureEnableImmediate(CUBLI);
   //       }
   //     }
   // #endif
@@ -1042,12 +1059,12 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
             scaledAxisPidRoll  * activeMixer[i].roll +
             scaledAxisPidPitch * activeMixer[i].pitch +
             scaledAxisPidYaw   * activeMixer[i].yaw;
-
-        if (featureIsEnabled(FEATURE_CUBLI)) {
-          if (i < 3 ) {
-            mix = mix; //- cubliMotorError(i);
-          }
-        }
+        //
+        // if (featureIsEnabled(FEATURE_CUBLI)) {
+        //   if (i < 3 ) {
+        //     mix = mix; //- cubliMotorError(i);
+        //   }
+        // }
 
         mix *= vbatCompensationFactor;  // Add voltage compensation
 
