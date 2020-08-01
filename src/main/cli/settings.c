@@ -885,6 +885,7 @@ const clivalue_t valueTable[] = {
     { "errorsetpoint_cubli",       VAR_UINT16  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, errorsetpoint_cubli) },
     { "maxerror_cubli",            VAR_UINT16  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, maxerror_cubli) },
     { "maxrpm_cubli",              VAR_UINT16  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 5000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, maxrpm_cubli) },
+    { "motor_acc_gain",            VAR_UINT16  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 2000 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, motor_acc_gain) },
 
 #endif
 
@@ -1079,9 +1080,9 @@ const clivalue_t valueTable[] = {
     { "f_yaw",                      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].F) },
     { "r_yaw",                      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].R) },
 
-    { "p_rpm_roll",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_ROLL]) }, //DELETE
-    { "p_rpm_pitch",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_PITCH]) },//DELETE
-    { "p_rpm_yaw",                  VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_YAW]) },  //DELETE
+    { "p_rpm_roll",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_ROLL]) },
+    { "p_rpm_pitch",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_PITCH]) },
+    { "p_rpm_yaw",                  VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, cubli_rpm_p[FD_YAW]) },
 
     { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_LEVEL].P) },
     { "horizon_level_strength",     VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_LEVEL].I) },

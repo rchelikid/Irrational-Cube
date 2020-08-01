@@ -88,6 +88,7 @@ typedef struct mixerConfig_s {
     uint16_t errorsetpoint_cubli;
     uint16_t maxerror_cubli;
     uint16_t maxrpm_cubli;
+    uint16_t motor_acc_gain;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

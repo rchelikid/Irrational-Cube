@@ -116,7 +116,7 @@ typedef struct pidProfile_s {
     uint16_t dterm_lowpass_hz;              // Delta Filter in hz
     uint16_t dterm_notch_hz;                // Biquad dterm notch hz
     uint16_t dterm_notch_cutoff;            // Biquad dterm notch low cutoff
-    uint16_t cubli_rpm_p[XYZ_AXIS_COUNT];   //roll pitch yaw coefficient KYLE DELETE
+    uint16_t cubli_rpm_p[XYZ_AXIS_COUNT];   //roll pitch yaw coefficient KYLE
 
     pidf_t  pid[PID_ITEM_COUNT];
 

@@ -80,7 +80,8 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .minrpm_cubli = 140, // rpm
     .errorsetpoint_cubli = 500, // rpm
     .maxerror_cubli = 200, // rpm
-    .maxrpm_cubli = 1500 // rpm
+    .maxrpm_cubli = 1500, // rpm
+    .motor_acc_gain = 400
 
 );
 
@@ -522,7 +523,7 @@ static FAST_RAM_ZERO_INIT float motorRangeMin;
 static FAST_RAM_ZERO_INIT float motorRangeMax;
 static FAST_RAM_ZERO_INIT float motorOutputRange;
 static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
-//static FAST_RAM_ZERO_INIT uint8_t errorStart = 0;
+static FAST_RAM_ZERO_INIT uint8_t errorStart = 0;
 
 // calculate throttle
 void calculateCurrentThrottle(void) // throttle
@@ -843,6 +844,7 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     for (int i = 0; i < motorCount; i++) {
         float motorOutput = motorMix[i]; //motorOutputMixSign *
         float motorOutputThrottle = throttle * activeMixer[i].throttle;
+        float motorGain = (mixerConfig()->motor_acc_gain);
 #ifdef USE_THRUST_LINEARIZATION
         motorOutput = pidApplyThrustLinearization(motorOutput);
 #endif
@@ -872,8 +874,11 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         } else {
             motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
         }
-        motor[i] = motorOutput;// + motorPrev[i] * dT;
-        // motorPrev[i] = motorOutput;
+        if (featureIsEnabled(FEATURE_CUBLI)) {
+        motor[i] = motor[i] + ((motorGain / 1000.0f) * motorOutput * targetPidLooptime * 1e-6f);
+      } else {
+        motor[i] = motorOutput;
+      }
     }
 
     // Disarmed mode
@@ -881,7 +886,7 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
         for (int i = 0; i < motorCount; i++) {
             motor[i] = motor_disarmed[i];
             //motorPrev[i] = deadbandMotor3dHigh;
-            //errorStart = 0;
+            errorStart = 0;
         }
     }
 }
@@ -928,42 +933,29 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
-// float cubliMotorError(int i) {
+float cubliMotorError(int i) {
   // .deadband_cubli = 15,
   // .minRpm_cubli = 140,
   // .errorSetpoint_cubli = 500,
   // .maxError_cubli = 500,
-  //.maxRpm_cubli = 1500
-  // float error = 0.0f;
-  // int rpm = 0;
-  //int minRpm = (mixerConfig()->minrpm_cubli); // keep the motor form desync
+  // .maxRpm_cubli = 1500
+  float error = 0.0f;
+  int rpm = 0;
+  // int minRpm = (mixerConfig()->minrpm_cubli); // keep the motor form desync
   // int maxRpm = (mixerConfig()->maxrpm_cubli);
-  // int errorSetpoint = (mixerConfig()->errorsetpoint_cubli); // where the motor should seek and balance
-  //int maxError = (mixerConfig()->maxerror_cubli); // max error from errorsetpoint
-  // #ifdef USE_DSHOT_TELEMETRY
-  //   if (motorConfig()->dev.useDshotTelemetry) {
-  //       rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
-  //         if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
-  //         errorStart = 1;
-  //       }
-  //     }
-  // #endif
-  //     if (errorStart) {
-            // if (rpm < minRpm) {
-              //   error = 0;
-              // }
-            // else if (motor[i] <= deadbandMotor3dHigh) { // inverted
-            //   error = -rpm - errorSetpoint; //
-            //
-            // } else { // normal
-            //   error = rpm - errorSetpoint; // lower negative higher positive
-            // }
+  int errorSetpoint = (mixerConfig()->errorsetpoint_cubli); // where the motor should seek and balance
+  // int maxError = (mixerConfig()->maxerror_cubli); // max error from errorsetpoint
+  #ifdef USE_DSHOT_TELEMETRY
+    if (motorConfig()->dev.useDshotTelemetry) {
+        rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
+          if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
+          errorStart = 1;
+        }
+      }
+  #endif
+  return error;
 
-            // error = constrainf(error, -maxError, maxError);
-            //error = (errorSetpoint / maxRpm)// + ((error * pidData[i].R) / maxError);
-//   return error;
-//
-// }
+}
 
 FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
 {
@@ -1045,7 +1037,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 
         if (featureIsEnabled(FEATURE_CUBLI)) {
           if (i < 3 ) {
-            mix = mix; //- cubliMotorError(i);
+            mix = mix - cubliMotorError(i);
           }
         }
 

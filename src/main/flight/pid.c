@@ -1060,50 +1060,25 @@ static FAST_CODE_NOINLINE float applyAcroTrainer(int axis, const rollAndPitchTri
 
 
 // start applyCubliSetpoint
-static void applyCubliSetpoint(int axis, const float errorRate, float *currentPidSetpoint)
+STATIC_UNIT_TESTED FAST_CODE_NOINLINE float applyCubliSetpoint(int axis, const pidProfile_t *pidProfile, const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint)
 {
-      *currentPidSetpoint = *currentPidSetpoint + (errorRate * pidCoefficient[axis].Kr * dT);
+  float rpmGain = (pidProfile->cubli_rpm_p[axis]) / 1000.0f;
+  float angle = pidProfile->levelAngleLimit * getRcDeflection(axis);
+  int rpm = 0;
+  angle = constrainf(angle, -pidProfile->levelAngleLimit, pidProfile->levelAngleLimit);
+  const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
+  const int setpointRpm = (mixerConfig()->errorsetpoint_cubli);
+#ifdef USE_DSHOT_TELEMETRY
+  if (motorConfig()->dev.useDshotTelemetry) {
+      rpm = (int)getDshotTelemetry(axis) * 100 * 2 / motorConfig()->motorPoleCount;
+    }
+     float errorRpm = rpm - setpointRpm;
 
+#endif
+
+  currentPidSetpoint = (errorAngle * levelGain) + (errorRpm * rpmGain);
+  return currentPidSetpoint;
 }
-
-
-  // slowing down
-
-//
-//
-//
-// float errorRate = currentPidSetpoint - gyroRate;
-// }
-//
-// const float delta =
-//     - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidFrequency;
-// // end applyCubliSetpoint
-//
-// // rpmDirection
-// static bool getEscRpm(void) {}
-// // end rpmDirection
-//
-// // get rpm
-// #if defined(USE_ESC_SENSOR) || defined(USE_DSHOT_TELEMETRY)
-// static int32_t getEscRpm(int i)
-// {
-// #ifdef USE_DSHOT_TELEMETRY
-//     if (motorConfig()->dev.useDshotTelemetry) {
-//         uint32_t rpm = 0;
-//         return rpm * 100 * 2 / motorConfig()->motorPoleCount;
-//     }
-// #endif
-// #ifdef USE_ESC_SENSOR
-//     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-//         return calcEscRpm(osdEscDataCombined->rpm);
-//     }
-// #endif
-//     return 0;
-// }
-// #endif
-// // end get rpm
-
-
 
 
 
@@ -1484,6 +1459,10 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         }
 #endif // USE_YAW_SPIN_RECOVERY
 
+if (featureIsEnabled(FEATURE_CUBLI)) {
+        currentPidSetpoint = applyCubliSetpoint(axis, pidProfile, angleTrim, currentPidSetpoint);
+      }
+
         // -----calculate error rate
         const float gyroRate = gyro.gyroADCf[axis]; // Process variable from gyro output in deg/sec
         float errorRate = currentPidSetpoint - gyroRate; // r - y
@@ -1508,49 +1487,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
         float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
-// -----calculate R component
-// -------SETPOINT FOR CUBLI
-
-if (featureIsEnabled(FEATURE_CUBLI)) {
-        applyCubliSetpoint(axis, errorRate, &currentPidSetpoint);
-      }
-// float cubliMotorError(int i) {
-//
-//   float error = 0.0f;
-//   int rpm = 0;
-//   int minRpm = (mixerConfig()->minrpm_cubli); // keep the motor form desync
-//   int maxRpm = (mixerConfig()->maxrpm_cubli);
-//   int errorSetpoint = (mixerConfig()->errorsetpoint_cubli); // where the motor should seek and balance
-//   int maxError = (mixerConfig()->maxerror_cubli); // max error from errorsetpoint
-//   #ifdef USE_DSHOT_TELEMETRY
-//     if (motorConfig()->dev.useDshotTelemetry) {
-//         rpm = (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount;
-//           if (rpm > (errorSetpoint - 15) && rpm < (errorSetpoint + 15)) {
-//           errorStart = 1;
-//         }
-//       }
-//   #endif
-//       if (errorStart) {
-//             if (rpm < minRpm) {
-//                 error = 0;
-//               }
-//             else if (motor[i] <= deadbandMotor3dHigh) { // inverted
-//               error = -rpm - errorSetpoint; //
-//
-//             } else { // normal
-//               error = rpm - errorSetpoint; // lower negative higher positive
-//             }
-//
-//             error = constrainf(error, -maxError, maxError);
-//             error = (errorSetpoint / maxRpm) + ((error * pidData[i].R) / maxError);
-//   }
-//   return error;
-//
-// }
-// const float delta =
-//     - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidFrequency;
-//
-//   pidData[axis].R = pidCoefficient[axis].Kr; //* rpm; maybe error rate?
 
 
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
@@ -1559,11 +1495,11 @@ if (featureIsEnabled(FEATURE_CUBLI)) {
 
         // -----calculate P component
         pidData[axis].P = pidCoefficient[axis].Kp * errorRate * tpaFactorKp;
-if (!featureIsEnabled(FEATURE_CUBLI)) {
-        if (axis == FD_YAW) {
-            pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
-        }
-}
+// if (!featureIsEnabled(FEATURE_CUBLI)) {
+//         if (axis == FD_YAW) {
+//             pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
+//         }
+// }
 
         // -----calculate I component
         float Ki;
