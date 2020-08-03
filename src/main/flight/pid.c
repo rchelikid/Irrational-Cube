@@ -158,9 +158,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
 
         },
         .cubli_rpm_p = { //DELETE
-          [FD_ROLL] = 50, //DELETE
-          [FD_PITCH] = 50, //DELETE
-          [FD_YAW] = 50, //DELETE
+          [FD_ROLL] = 0, //DELETE
+          [FD_PITCH] = 0, //DELETE
+          [FD_YAW] = 0, //DELETE
 
         },
         .pidSumLimit = PIDSUM_LIMIT,
@@ -241,6 +241,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_lpf_curve_expo = 5,
         .level_race_mode = false,
         .vbat_sag_compensation = 0,
+        // .setpointgain_cubli = 50,
+        // .midrpm_cubli = 750,
     );
 #ifndef USE_D_MIN
     pidProfile->pid[PID_ROLL].D = 30;
@@ -290,6 +292,7 @@ typedef union dtermLowpass_u {
 } dtermLowpass_t;
 
 static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
+//static FAST_RAM_ZERO_INIT float cubliSetpoint[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermNotchApplyFn;
 static FAST_RAM_ZERO_INIT biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
@@ -1062,7 +1065,7 @@ static FAST_CODE_NOINLINE float applyAcroTrainer(int axis, const rollAndPitchTri
 // start applyCubliSetpoint
 STATIC_UNIT_TESTED FAST_CODE_NOINLINE float applyCubliSetpoint(int axis, const pidProfile_t *pidProfile, const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint)
 {
-  float rpmGain = (pidProfile->cubli_rpm_p[axis]) / 1000.0f;
+  float rpmGain = (pidProfile->cubli_rpm_p[axis]) / 1000.0f; // p_rpm_yaw
   float angle = pidProfile->levelAngleLimit * getRcDeflection(axis);
   int rpm = 0;
   angle = constrainf(angle, -pidProfile->levelAngleLimit, pidProfile->levelAngleLimit);
@@ -1417,22 +1420,23 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // Yaw control is GYRO based, direct sticks control is applied to rate PID
         // When Race Mode is active PITCH control is also GYRO based in level or horizon mode
 #if defined(USE_ACC)
-        switch (levelMode) {
-        case LEVEL_MODE_OFF:
-
-            break;
-        case LEVEL_MODE_R:
-            if (axis == FD_PITCH) {
-                break;
-            }
-
-            FALLTHROUGH;
-        case LEVEL_MODE_RP:
-            if (axis == FD_YAW) {
-                break;
-            }
-            currentPidSetpoint = pidLevel(axis, pidProfile, angleTrim, currentPidSetpoint);
-        }
+        // switch (levelMode) {
+        // case LEVEL_MODE_OFF:
+        //
+        //     break;
+        // case LEVEL_MODE_R:
+        //     if (axis == FD_PITCH) {
+        //         break;
+        //     }
+        //
+        //     FALLTHROUGH;
+        // case LEVEL_MODE_RP:
+        //     if (axis == FD_YAW) {
+        //         break;
+        //     }
+        //     currentPidSetpoint = pidLevel(axis, pidProfile, angleTrim, currentPidSetpoint);
+        // }
+        currentPidSetpoint = pidLevel(axis, pidProfile, angleTrim, currentPidSetpoint);
 #endif
 
 #ifdef USE_ACRO_TRAINER
