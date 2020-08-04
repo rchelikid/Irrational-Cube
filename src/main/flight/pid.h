@@ -117,6 +117,10 @@ typedef struct pidProfile_s {
 
     pidf_t  pid[PID_ITEM_COUNT];
 
+    uint16_t rpm_gain;
+    uint16_t rpm_setpoint;
+    uint16_t cubli_level;
+
     uint8_t dterm_filter_type;              // Filter selection for dterm
     uint8_t itermWindupPointPercent;        // iterm windup threshold, percent motor saturation
     uint16_t pidSumLimit;

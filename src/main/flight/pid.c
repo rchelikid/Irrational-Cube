@@ -33,11 +33,13 @@
 #include "common/maths.h"
 
 #include "config/config_reset.h"
+#include "config/feature.h"
 
 #include "drivers/dshot_command.h"
 #include "drivers/pwm_output.h"
 #include "drivers/sound_beeper.h"
 #include "drivers/time.h"
+#include "drivers/dshot.h"
 
 #include "fc/controlrate_profile.h"
 #include "fc/core.h"
@@ -229,6 +231,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_lpf_curve_expo = 5,
         .level_race_mode = false,
         .vbat_sag_compensation = 0,
+        .rpm_gain = 1000,
+        .rpm_setpoint = 500,
+        .cubli_level = 50,
     );
 #ifndef USE_D_MIN
     pidProfile->pid[PID_ROLL].D = 30;
@@ -1268,6 +1273,33 @@ static FAST_CODE_NOINLINE float applyLaunchControl(int axis, const rollAndPitchT
 }
 #endif
 
+
+// start applyCubliSetpoint
+STATIC_UNIT_TESTED FAST_CODE_NOINLINE float applyCubliSetpoint(int axis, const pidProfile_t *pidProfile, const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint)
+{
+  // calculate error angle and limit the angle to the max inclination
+  // rcDeflection is in range [-1.0, 1.0]
+  float cubliLevelGain = pidProfile->cubli_level / 50;
+  float rpmGain = (pidProfile->rpm_gain) / 1000.0f;
+  float angle = pidProfile->levelAngleLimit * getRcDeflection(axis);
+  int rpm = 0;
+  const int setpointRpm = (pidProfile->rpm_setpoint);
+  #ifdef USE_DSHOT_TELEMETRY
+    if (motorConfig()->dev.useDshotTelemetry) {
+        rpm = (int)getDshotTelemetry(axis) * 100 * 2 / motorConfig()->motorPoleCount;
+      }
+       float errorRpm = rpm - setpointRpm;
+  #endif
+
+  angle = constrainf(angle, -pidProfile->levelAngleLimit, pidProfile->levelAngleLimit);
+  const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
+
+  currentPidSetpoint = (errorAngle * cubliLevelGain) + (errorRpm * rpmGain);
+  return currentPidSetpoint;
+}
+
+
+
 // Betaflight pid controller, which will be maintained in the future with additional features specialised for current (mini) multirotor usage.
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
@@ -1421,6 +1453,10 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         }
 #endif // USE_YAW_SPIN_RECOVERY
 
+if (featureIsEnabled(FEATURE_CUBLI)) {
+        currentPidSetpoint = applyCubliSetpoint(axis, pidProfile, angleTrim, currentPidSetpoint);
+      }
+
         // -----calculate error rate
         const float gyroRate = gyro.gyroADCf[axis]; // Process variable from gyro output in deg/sec
         float errorRate = currentPidSetpoint - gyroRate; // r - y
@@ -1464,7 +1500,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (launchControlActive) {
             Ki = launchControlKi;
             axisDynCi = dynCi;
-        } else 
+        } else
 #endif
         {
             Ki = pidCoefficient[axis].Ki;

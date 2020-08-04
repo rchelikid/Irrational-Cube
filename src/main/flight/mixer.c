@@ -74,7 +74,8 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .mixerMode = DEFAULT_MIXER,
     .yaw_motors_reversed = false,
     .crashflip_motor_percent = 0,
-    .crashflip_expo = 35
+    .crashflip_expo = 35,
+    .motor_gain = 1000
 );
 
 PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR_MIXER, 0);
@@ -110,10 +111,10 @@ static const motorMixer_t mixerTricopter[] = {
 };
 
 static const motorMixer_t mixerQuadP[] = {
-    { 1.0f,  0.0f,  1.0f, -1.0f },          // REAR
-    { 1.0f, -1.0f,  0.0f,  1.0f },          // RIGHT
-    { 1.0f,  1.0f,  0.0f,  1.0f },          // LEFT
-    { 1.0f,  0.0f, -1.0f, -1.0f },          // FRONT
+    { 1.0f,  0.0f, 0.0f, 0.0f },          // REAR
+    { 1.0f,  0.0f, 0.0f, 0.0f },          // RIGHT
+    { 1.0f,  1.0f, 0.0f, 0.0f },          // LEFT
+    { 1.0f,  0.0f, 0.0f, 0.0f },          // FRONT
 };
 
 #if defined(USE_UNCOMMON_MIXERS)
@@ -748,12 +749,35 @@ static void applyFlipOverAfterCrashModeToMotors(void)
     }
 }
 
+void cubliBalanceStart(void)
+{
+  int midStick = rxConfig()->midrc;
+  if (rcCommand[THROTTLE] > midStick) {
+      featureEnableImmediate(FEATURE_CUBLI);
+    } else {
+      featureDisableImmediate(FEATURE_CUBLI);
+    }
+}
+
+
 static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t *activeMixer)
 {
     // Now add in the desired throttle, but keep in a range that doesn't clip adjusted
     // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
     for (int i = 0; i < motorCount; i++) {
-        float motorOutput = motorOutputMixSign * motorMix[i] + throttle * activeMixer[i].throttle;
+        float motorGain = mixerConfig()->motor_gain;
+        float motorMixOnly = motorOutputMixSign * motorMix[i];
+        float motorThrottleOnly = throttle * activeMixer[i].throttle;
+        float motorOutput;
+
+        cubliBalanceStart();
+
+        if (featureIsEnabled(FEATURE_CUBLI)) {
+          motorOutput = motorMixOnly;// + 0.50f;
+        } else {
+          motorOutput = motorThrottleOnly;
+        }
+
 #ifdef USE_THRUST_LINEARIZATION
         motorOutput = pidApplyThrustLinearization(motorOutput);
 #endif
@@ -771,6 +795,9 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
             }
 #endif
             motorOutput = constrain(motorOutput, disarmMotorOutput, motorRangeMax);
+        } else if (featureIsEnabled(FEATURE_CUBLI)) {
+            motorOutput = motor[i] + ((motorGain / 10.0f) * motorOutput * targetPidLooptime * 1e-6f); // motor gain,
+            motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
         } else {
             motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
         }
@@ -948,6 +975,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 #endif
     mixerThrottle = throttle;
 
+if (!featureIsEnabled(FEATURE_CUBLI)) {
     motorMixRange = motorMixMax - motorMixMin;
     if (motorMixRange > 1.0f) {
         for (int i = 0; i < motorCount; i++) {
@@ -965,6 +993,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 #endif
         }
     }
+  }
 
 #ifdef USE_AIRMODE_LPF
     pidUpdateAirmodeLpf(airmodeThrottleChange);
