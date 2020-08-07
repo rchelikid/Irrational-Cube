@@ -284,6 +284,8 @@ typedef union dtermLowpass_u {
 
 static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
 
+static FAST_RAM_ZERO_INIT float balanceError[XYZ_AXIS_COUNT];
+
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermNotchApplyFn;
 static FAST_RAM_ZERO_INIT biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpassApplyFn;
@@ -1280,21 +1282,22 @@ STATIC_UNIT_TESTED FAST_CODE_NOINLINE float applyCubliSetpoint(int axis, const p
   // calculate error angle and limit the angle to the max inclination
   // rcDeflection is in range [-1.0, 1.0]
   float cubliLevelGain = pidProfile->cubli_level / 50;
-  float rpmGain = (pidProfile->rpm_gain) / 1000.0f;
+  float rpmGain = (pidProfile->rpm_gain);
   float angle = pidProfile->levelAngleLimit * getRcDeflection(axis);
   int rpm = 0;
   const int setpointRpm = (pidProfile->rpm_setpoint);
   #ifdef USE_DSHOT_TELEMETRY
     if (motorConfig()->dev.useDshotTelemetry) {
-        rpm = (int)getDshotTelemetry(axis) * 100 * 2 / motorConfig()->motorPoleCount;
+        rpm = (int)getDshotTelemetry(FD_YAW) * 100 * 2 / motorConfig()->motorPoleCount;
       }
-       float errorRpm = rpm - setpointRpm;
   #endif
+  float errorRpm = rpm - setpointRpm;
+  balanceError[axis] = (errorRpm / setpointRpm) * rpmGain;
 
   angle = constrainf(angle, -pidProfile->levelAngleLimit, pidProfile->levelAngleLimit);
-  const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
+  const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis] - balanceError[axis]) / 10.0f);
 
-  currentPidSetpoint = (errorAngle * cubliLevelGain) + (errorRpm * rpmGain);
+  currentPidSetpoint = (errorAngle * cubliLevelGain);
   return currentPidSetpoint;
 }
 
